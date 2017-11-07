@@ -1,10 +1,10 @@
 package main
 
 import (
-	"github.com/maciej-kapusta/boxlister/cli"
-	"os"
+	"boxlister/cli"
+	"boxlister/instance"
 	"fmt"
-	"github.com/maciej-kapusta/boxlister/instance"
+	"os"
 )
 
 const template = `
@@ -20,7 +20,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	instances := instance.DescribeInstances(cliFlags.Profile)
+	instances := instance.DescribeInstances(cliFlags.Profile, cliFlags.Region)
 
 	out := os.Stdout
 	if *cliFlags.OutputFile != "" {
