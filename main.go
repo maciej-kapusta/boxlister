@@ -1,12 +1,12 @@
 package main
 
 import (
-	"./cli"
-	"./instance"
+	"boxlister/cli"
+	"boxlister/instance"
 	"fmt"
 	"os"
 	"bytes"
-	"./files"
+	"boxlister/files"
 	"os/user"
 )
 
