@@ -1,10 +1,13 @@
 package main
 
 import (
-	"boxlister/cli"
-	"boxlister/instance"
+	"./cli"
+	"./instance"
 	"fmt"
 	"os"
+	"bytes"
+	"./files"
+	"os/user"
 )
 
 const template = `
@@ -20,22 +23,36 @@ func main() {
 		os.Exit(1)
 	}
 
-	instances := instance.DescribeInstances(cliFlags.Profile, cliFlags.Region)
+	fmt.Println(cliFlags)
+	var instances []*instance.Instance
 
-	out := os.Stdout
-	if *cliFlags.OutputFile != "" {
-
-		file, e := os.Create(*cliFlags.OutputFile)
-		if e != nil {
-			panic(e)
-		}
-		defer file.Close()
-		out = file
+	for _, profile := range cliFlags.Profiles {
+		profileInstances := instance.DescribeInstances(profile, cliFlags.Region)
+		instances = append(instances, profileInstances...)
 	}
-	for _, inst := range instances {
-		if inst.NameContains(*cliFlags.InstanceNamePart) {
-			serverConfigString := fmt.Sprintf(template, *inst.Name, *inst.DnsName, *cliFlags.SshUser)
-			out.WriteString(serverConfigString)
+
+	var outBuf bytes.Buffer
+	for _, namePart := range cliFlags.InstanceNameParts {
+		for _, inst := range instances {
+			if inst.NameMatches(namePart, cliFlags.InstancePrefix) {
+				serverConfigString := fmt.Sprintf(template, *inst.Name, *inst.DnsName, cliFlags.SshUser)
+				outBuf.WriteString(serverConfigString)
+			}
 		}
+	}
+	if cliFlags.GenerateFile {
+		current, e := user.Current()
+		handleError(e)
+		configPath := current.HomeDir + "/.ssh/config"
+
+		files.FillGenerated(&configPath, outBuf)
+	} else {
+		fmt.Fprint(os.Stdout, outBuf.String())
+	}
+}
+
+func handleError(e error) {
+	if e != nil {
+		panic(e)
 	}
 }

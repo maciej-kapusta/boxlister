@@ -26,8 +26,8 @@ func (i *Instance) IsValid() bool {
 	return i.DnsName != nil && i.Name != nil
 }
 
-func (i *Instance) NameContains(namePart string) bool {
-	return i.Name != nil && strings.Contains(*i.Name, namePart)
+func (i *Instance) NameMatches(namePart string, namePrefix string) bool {
+	return i.Name != nil && strings.Index(*i.Name, namePrefix) == 0 && strings.Contains(*i.Name, namePart)
 }
 
 func publicDns(instance *ec2.Instance) *string {

@@ -6,18 +6,18 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 )
 
-func DescribeInstances(profile *string, region *string) []*Instance {
+func DescribeInstances(profile string, region string) []*Instance {
 	options := session.Options{
 		SharedConfigState: session.SharedConfigEnable,
 	}
 
-	if *profile != "" {
-		options.Profile = *profile
+	if profile != "" {
+		options.Profile = profile
 	}
 
-	if *region != "" {
+	if region != "" {
 		options.Config = aws.Config{
-			Region: region,
+			Region: &region,
 		}
 	}
 

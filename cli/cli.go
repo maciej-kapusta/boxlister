@@ -4,40 +4,60 @@ import (
 	"flag"
 	"fmt"
 	"os"
-	user2 "os/user"
+	"os/user"
+	"strings"
 )
 
 type CliFlags struct {
-	Profile          *string
-	SshUser          *string
-	InstanceNamePart *string
-	OutputFile       *string
-	Region           *string
+	Profiles          []string
+	SshUser           string
+	InstanceNameParts []string
+	InstancePrefix    string
+	GenerateFile      bool
+	Region            string
 }
 
 func ParseFlags() *CliFlags {
-	current, e := user2.Current()
+	current, e := user.Current()
 	if e != nil {
 		panic(e)
 	}
-	profile := flag.String("profile", "", "Optional AWS Profile. If missing the profile from your AWS CLI used.")
-	user := flag.String("user", current.Username, "ssh user. If empty your login will be used")
-	instanceNamePart := flag.String("instance", "", "part of instance name to be matched(required)")
-	outputFile := flag.String("out", "", "Optional output file to save instances and use in ssh. If missing std out will be used")
+	rawProfiles := flag.String("profile", "", "Optional AWS Profiles. If missing the profile from your AWS CLI used.")
+	userName := flag.String("user", current.Username, "ssh user. If empty your login will be used")
+	instanceNamePartsRaw := flag.String("instance", "", "comma separated list of parts of instance name to be matched(required)")
+	instancePrefix := flag.String("prefix", "", "instance name common prefix")
+	generateFile := flag.Bool("generate_file", false, "generate ~/.ssh/config")
 	region := flag.String("region", "us-east-1", "Optional AWS region. If absent the AWS CLI config is used.")
 	flag.Parse()
 
-	if *instanceNamePart == "" {
-		fmt.Fprintln(os.Stderr, "Missing parameters. Usage: boxlister [-user=joe.doe] [-profile=acme-prod] -instance=db [-out=my_ssh_file]")
+	instanceNamePartsParsed := splitCommas(instanceNamePartsRaw)
+	profiles := splitCommas(rawProfiles)
+
+	if *instanceNamePartsRaw == "" {
+		fmt.Fprintln(os.Stderr, "Missing parameters. Usage: boxlister [-user=joe.doe] [-profile=acme-prod] -prefix=zeropark -instance=db,bidder [-generate_file]")
 		flag.PrintDefaults()
 		return nil
 	}
 
 	return &CliFlags{
-		Profile:          profile,
-		SshUser:          user,
-		InstanceNamePart: instanceNamePart,
-		OutputFile:       outputFile,
-		Region:           region,
+		Profiles:          profiles,
+		SshUser:           *userName,
+		InstanceNameParts: instanceNamePartsParsed,
+		InstancePrefix:    *instancePrefix,
+		GenerateFile:      *generateFile,
+		Region:            *region,
 	}
+}
+
+func splitCommas(partsRaw *string) []string {
+	split := strings.Split(*partsRaw, ",")
+	var parsed []string
+	for _, part := range split {
+		part = strings.TrimSpace(part)
+		if len(part) == 0 {
+			continue
+		}
+		parsed = append(parsed, part)
+	}
+	return parsed
 }
