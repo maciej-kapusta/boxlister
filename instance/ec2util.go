@@ -6,7 +6,8 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 )
 
-func DescribeInstances(profile string, region string) []*Instance {
+//Fetch all instances from region for a profile
+func Fetch(profile string, region string) []*Instance {
 	options := session.Options{
 		SharedConfigState: session.SharedConfigEnable,
 	}
@@ -20,7 +21,6 @@ func DescribeInstances(profile string, region string) []*Instance {
 			Region: &region,
 		}
 	}
-
 	sess := session.Must(session.NewSessionWithOptions(options))
 	ec2Sess := ec2.New(sess)
 	instances, err := ec2Sess.DescribeInstances(&ec2.DescribeInstancesInput{})
@@ -31,7 +31,7 @@ func DescribeInstances(profile string, region string) []*Instance {
 	var ec2Machines []*Instance
 	for _, r := range instances.Reservations {
 		for _, instance := range r.Instances {
-			ec2Machine := ToE2Machine(instance)
+			ec2Machine := asInstance(instance)
 			if ec2Machine.IsValid() {
 				ec2Machines = append(ec2Machines, ec2Machine)
 			}

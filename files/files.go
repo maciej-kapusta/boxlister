@@ -1,14 +1,15 @@
 package files
 
 import (
-	"io/ioutil"
-	"os"
 	"bufio"
 	"bytes"
 	"fmt"
+	"io/ioutil"
+	"os"
 	"strings"
 )
 
+// FillGenerated fills the generated part of a file
 func FillGenerated(fileName *string, buffer bytes.Buffer) {
 	content, e := ioutil.ReadFile(*fileName)
 	checkError(e)
@@ -19,7 +20,7 @@ func FillGenerated(fileName *string, buffer bytes.Buffer) {
 	generating := false
 	for scanner.Scan() {
 		line := scanner.Text()
-		if ! generating {
+		if !generating {
 			_, e := fmt.Fprintln(file, line)
 			checkError(e)
 		}
@@ -36,6 +37,7 @@ func FillGenerated(fileName *string, buffer bytes.Buffer) {
 		fmt.Println("Not generated.")
 	}
 }
+
 func checkError(e error) {
 	if e != nil {
 		panic(e)

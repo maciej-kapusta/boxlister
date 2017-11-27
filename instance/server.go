@@ -1,20 +1,24 @@
 package instance
 
 import (
-	"github.com/aws/aws-sdk-go/service/ec2"
 	"fmt"
 	"strings"
+
+	"github.com/aws/aws-sdk-go/service/ec2"
 )
 
+//Instance instance representation
 type Instance struct {
 	Name    *string
 	DnsName *string
+	Id      *string
 }
 
-func ToE2Machine(intance *ec2.Instance) *Instance {
+func asInstance(intance *ec2.Instance) *Instance {
 	return &Instance{
 		DnsName: publicDns(intance),
 		Name:    nameTag(intance),
+		Id:      intance.InstanceId,
 	}
 }
 
