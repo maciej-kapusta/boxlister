@@ -6,13 +6,10 @@ import (
 	"boxlister/instance"
 	"bytes"
 	"fmt"
+	"net/http"
 	"os"
 	"os/user"
-)
-
-const (
-	fileTemplate    = "\n# %s\nHost%s\nHostName %s\nUser %s\n"
-	consoleTemplate = "%s %s %s\n"
+	"time"
 )
 
 func main() {
@@ -23,39 +20,76 @@ func main() {
 	}
 
 	fmt.Println(cliFlags)
-	var instances []*instance.Instance
+	instances := fetchInstances(cliFlags)
 
-	for _, profile := range cliFlags.Profiles {
-		profileInstances := instance.Fetch(profile, cliFlags.Region)
-		instances = append(instances, profileInstances...)
-	}
-
-	var outBuf bytes.Buffer
-	for _, namePart := range cliFlags.InstanceNameParts {
+	if cliFlags.GenerateFile {
+		generateSshFile(cliFlags, instances)
+	} else if cliFlags.HealthCheck != "" {
+		printHealthCheck(instances, cliFlags)
+	} else {
 		for _, inst := range instances {
-			if inst.NameMatches(namePart, cliFlags.InstancePrefix) {
-				serverConfigString := fillTemplate(inst, cliFlags)
-				outBuf.WriteString(serverConfigString)
-			}
+			fmt.Println(inst.PrintOut())
 		}
 	}
-	if cliFlags.GenerateFile {
-		current, e := user.Current()
-		handleError(e)
-		configPath := current.HomeDir + "/.ssh/config"
+}
+func printHealthCheck(instances []*instance.Instance, cliFlags *cli.CliFlags) {
+	client := &http.Client{
+		Timeout: time.Second * 3,
+	}
+	result := make(chan string)
+	for _, inst := range instances {
+		go func() {
+			resp, err := client.Get("http://" + inst.DnsName + cliFlags.HealthCheck)
+			if err != nil {
+				result <- err.Error()
+				return
+			}
+			defer resp.Body.Close()
+			if resp.StatusCode == 200 {
+				result <- inst.PrintOut() + " ok"
+				return
+			} else {
+				result <- inst.PrintOut() + " not ok"
+			}
 
-		files.FillGenerated(&configPath, outBuf)
-	} else {
-		fmt.Fprint(os.Stdout, outBuf.String())
+		}()
+	}
+
+	for i := 0; i < len(instances); i++ {
+		status := <-result
+		fmt.Println(status)
 	}
 }
 
-func fillTemplate(inst *instance.Instance, cliFlags *cli.CliFlags) string {
-	if cliFlags.GenerateFile {
-		return fmt.Sprintf(fileTemplate, *inst.Id, *inst.Name, *inst.DnsName, cliFlags.SshUser)
+func generateSshFile(cliFlags *cli.CliFlags, instances []*instance.Instance) {
+	var outBuf bytes.Buffer
+	for _, inst := range instances {
+		serverConfigString := inst.PrintOutSshFormat(cliFlags.SshUser)
+		outBuf.WriteString(serverConfigString)
 	}
-	return fmt.Sprintf(consoleTemplate, *inst.Id, *inst.Name, *inst.DnsName)
+	current, e := user.Current()
+	handleError(e)
+	configPath := current.HomeDir + "/.ssh/config"
+	files.FillGenerated(&configPath, outBuf)
+}
 
+func fetchInstances(cliFlags *cli.CliFlags) []*instance.Instance {
+	var instances []*instance.Instance
+	if len(cliFlags.Profiles) == 0 {
+		instances = appendInstances("", cliFlags, instances)
+	}
+
+	for _, profile := range cliFlags.Profiles {
+		instances = appendInstances(profile, cliFlags, instances)
+	}
+	return instances
+}
+
+func appendInstances(profile string, cliFlags *cli.CliFlags, instances []*instance.Instance) []*instance.Instance {
+	profileInstances := instance.Fetch(profile, cliFlags.Region, cliFlags.InstancePrefix, cliFlags.InstanceNameParts)
+
+	instances = append(instances, profileInstances...)
+	return instances
 }
 
 func handleError(e error) {

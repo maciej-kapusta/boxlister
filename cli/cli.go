@@ -15,6 +15,7 @@ type CliFlags struct {
 	InstancePrefix    string
 	GenerateFile      bool
 	Region            string
+	HealthCheck       string
 }
 
 func ParseFlags() *CliFlags {
@@ -28,15 +29,21 @@ func ParseFlags() *CliFlags {
 	instancePrefix := flag.String("prefix", "", "instance name common prefix")
 	generateFile := flag.Bool("generate_file", false, "generate ~/.ssh/config")
 	region := flag.String("region", "us-east-1", "Optional AWS region. If absent the AWS CLI config is used.")
+	healthcheck := flag.String("healthcheck", "", "healthcheck path after host name. :8080/healthcheck")
 	flag.Parse()
 
 	instanceNamePartsParsed := splitCommas(instanceNamePartsRaw)
+
 	profiles := splitCommas(rawProfiles)
 
 	if *instanceNamePartsRaw == "" {
-		fmt.Fprintln(os.Stderr, "Missing parameters. Usage: boxlister [-user=joe.doe] [-profile=acme-prod] -prefix=zeropark -instance=db,bidder [-generate_file]")
+		fmt.Fprintln(os.Stderr, "Missing parameters. Usage: boxlister [-user=joe.doe] [-profile=acme-prod] -prefix=zeropark -instance=db,bidder [-generate_file] [-healthcheck=:8080/healtcheck]")
 		flag.PrintDefaults()
 		return nil
+	}
+
+	if *healthcheck != "" && *generateFile {
+		fmt.Println("Healthcheck and generate file together. Healthcheck overrides file generation.")
 	}
 
 	return &CliFlags{
@@ -46,6 +53,7 @@ func ParseFlags() *CliFlags {
 		InstancePrefix:    *instancePrefix,
 		GenerateFile:      *generateFile,
 		Region:            *region,
+		HealthCheck:       *healthcheck,
 	}
 }
 
